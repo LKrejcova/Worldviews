@@ -55,7 +55,7 @@ run_session <- function(E_candidates, E_score, agents, alpha_list, feat_cols,
     })
     probs <- probs/sum(probs) # normalize the probability
     e_star <- sample(1:edges, 1, prob=probs) # sample one edge following the probability distribution
-    indiv[e_star, speaker] <- !as.logical(indiv[e_star, speaker]) 
+    indiv[e_star, speaker] <- TRUE
     # if the speaker included e_star originally: indiv[e_star, speaker] == 1 => as.logical => TRUE, !as.logical => FALSE
     # if the speaker didn't include e_star: indiv[e_star, speaker] == 0 => as.logical => FALSE, !as.logical => TRUE
     # basically the speaker toggles the edge on/off

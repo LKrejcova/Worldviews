@@ -1,28 +1,5 @@
-# ── 1. Experiment grid ────────────────────────────────────────────────────────
-set.seed(43)  # makes the grid itself reproducible
 
-N_REPS <- 50  # replications per condition — adjust as needed
-
-set.seed(42)
-
-experiment_grid <- tidyr::crossing(
-  nD         = 2:5,
-  nA         = 2:5,
-  nP         = 2:5,
-  nS         = 2:5,
-  nI         = 2:5,
-  nR         = 2:5,
-  group_size = c(3, 5, 10, 15, 20, 25),
-  tau        = c(0.5, 0.66)
-) |>
-  mutate(
-    run_id  = row_number(),
-    rho     = runif(n(), 0.5, 1),
-    p_links = runif(n(), 0.25, 0.75),
-    rep     = NA  # no replication needed — graph structure is now exact
-  )
-
-# ── 2. Single-run function ────────────────────────────────────────────────────
+# ── 1. Single-run function ────────────────────────────────────────────────────
 # Wraps everything for one row of the grid.
 # Returns a flat named list — becomes one row in your results table.
 
@@ -122,45 +99,3 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
   )
 }
 
-
-test <- pmap(experiment_grid[51, ], one_run)[[1]]
-str(test)
-
-any(sapply(test$shared_history, function(x) any(is.na(x))))
-
-pilot_test <- pmap(experiment_grid[94:97, ], one_run)
-pilot_df <- bind_rows(pilot_test)
-summary(pilot_df)
-
-
-# A few checks before we start the parallel run
-set.seed(1)
-pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 30), ]
-
-system.time({
-  pilot_results <- pmap(pilot_rows, one_run)
-  pilot_df <- bind_rows(pilot_results)  
-})
-
-
-# Sanity checks
-summary(pilot_df)
-pilot_df |> count(n_nodes_original)          # should vary, not be stuck at one value
-pilot_df |> filter(is.na(shared_consensus_time)) |> nrow()  # how many never converge?
-range(pilot_df$n_nodes_shared)
-
-# ── 3. Run in parallel ────────────────────────────────────────────────────────
-plan(multisession, workers = parallel::detectCores() - 1)
-
-system.time({
-  results_raw <- future_pmap(
-    pilot_rows,
-    one_run,
-    .options = furrr_options(seed = TRUE))
-})
-
-# ── 4. Flatten and save ───────────────────────────────────────────────────────
-results_df <- bind_rows(results_raw)
-
-saveRDS(results_df, "simulation_results.rds")
-write_csv(results_df, "simulation_results.csv")

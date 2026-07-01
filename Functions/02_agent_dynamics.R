@@ -14,6 +14,36 @@ make_agent <- function(id, w_mix, E_candidates, alpha_list, feat_cols){
   list(id=id, w_mix=w_mix, include=include0)
 }
 
+# Generate agents --------------------------------------------------------------
+# function to generate agent IDs and their corresponding worldview
+generate_agents <- function(n_agents, probs = c(HIER = 0.25, EGAL = 0.25, INDIV = 0.25, FATAL = 0.25)) {
+  
+  worldviews <- c("HIER", "EGAL", "INDIV", "FATAL")
+  
+  # Validate probs
+  if (!all(names(probs) %in% worldviews) || length(probs) != 4) {
+    stop("probs must be a named vector with names: HIER, EGAL, INDIV, FATAL")
+  }
+  if (abs(sum(probs) - 1) > 1e-6) {
+    stop("probs must sum to 1")
+  }
+  
+  # Sample worldviews
+  assigned <- sample(worldviews, size = n_agents, replace = TRUE, prob = probs[worldviews])
+  
+  # Build IDs: track counter per worldview prefix
+  prefix_map <- c(HIER = "H", EGAL = "E", INDIV = "I", FATAL = "F")
+  counters <- c(H = 0L, E = 0L, I = 0L, F = 0L)
+  
+  ids <- vapply(assigned, function(wv) {
+    prefix <- prefix_map[wv]
+    counters[prefix] <<- counters[prefix] + 1L
+    paste0(prefix, counters[prefix])
+  }, character(1))
+  
+  data.frame(id = ids, w_mix = assigned, row.names = NULL)
+}
+
 # Proposal probability for an edge e by agent i at time t ----------------------
 proposal_prob <- function(w_mix, psi_vec, alpha_list, E_e, social_sig, lambda=1, gamma=1){
   p_prior <- sigmoid(edge_prior_logit(w_mix, psi_vec, alpha_list))
