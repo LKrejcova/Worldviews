@@ -24,40 +24,40 @@ source("./Functions/05_simulation.R")
 # set.seed(43)  # makes the grid itself reproducible
 
 n_reps <- 30  # replications per condition — adjust as needed
+# 
+# experiment_grid <- tidyr::crossing(
+#   nD         = 2:5,
+#   nA         = 2:5,
+#   nP         = 2:5,
+#   nS         = 2:5,
+#   nI         = 2:5,
+#   nR         = 2:5,
+#   group_size = c(3, 5, 10, 15, 20, 25),
+#   tau        = c(0.5, 0.66)
+# ) |>
+#   mutate(
+#     run_id  = row_number(),
+#     rho     = runif(n(), 0.5, 1),
+#     p_links = runif(n(), 0.25, 0.75),
+#     replicate     = 1:3
+#   )
 
-experiment_grid <- tidyr::crossing(
-  nD         = 2:5,
-  nA         = 2:5,
-  nP         = 2:5,
-  nS         = 2:5,
-  nI         = 2:5,
-  nR         = 2:5,
-  group_size = c(3, 5, 10, 15, 20, 25),
-  tau        = c(0.5, 0.66)
-) |>
-  mutate(
-    run_id  = row_number(),
-    rho     = runif(n(), 0.5, 1),
-    p_links = runif(n(), 0.25, 0.75),
-    replicate     = 1:3
-  )
-
-experiment_grid <- tidyr::crossing(
-  nD         = 2:5,
-  nA         = 2:5,
-  nP         = 2:5,
-  nS         = 2:5,
-  nI         = 2:5,
-  nR         = 2:5,
-  group_size = c(3, 5, 10, 15, 20, 25),
-  tau        = c(0.5, 0.66)
-) |>
-  tidyr::crossing(replicate = 1:3) |>
-  mutate(
-    run_id  = row_number(),
-    rho     = runif(n(), 0.5, 1),
-    p_links = runif(n(), 0.25, 0.75)
-  )
+# experiment_grid <- tidyr::crossing(
+#   nD         = 2:5,
+#   nA         = 2:5,
+#   nP         = 2:5,
+#   nS         = 2:5,
+#   nI         = 2:5,
+#   nR         = 2:5,
+#   group_size = c(3, 5, 10, 15, 20, 25),
+#   tau        = c(0.5, 0.66)
+# ) |>
+#   tidyr::crossing(replicate = 1:3) |>
+#   mutate(
+#     run_id  = row_number(),
+#     rho     = runif(n(), 0.5, 1),
+#     p_links = runif(n(), 0.25, 0.75)
+#   )
 
 # 3 replicates per parameter setup
 experiment_grid <- tidyr::crossing(
@@ -67,8 +67,8 @@ experiment_grid <- tidyr::crossing(
   nS         = 2:5,
   nI         = 2:5,
   nR         = 2:5,
-  group_size = c(3, 5, 10, 15, 20, 25),
-  tau        = c(0.5, 0.66)
+  group_size = c(3, 5, 10, 15, 20, 25), #odd numbers!!! 11/9 and 21 in addition!!
+  tau        = c(0.5) #changed to simple majority only
 ) |>
   mutate(
     rho     = runif(n(), 0.5, 1),
@@ -121,24 +121,38 @@ experiment_grid <- tidyr::crossing(
 
 # ── 3. Run in parallel ────────────────────────────────────────────────────────
 plan(multisession, workers = parallel::detectCores() - 2)
-pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 100), ]
 
-system.time({
-  results_raw <- future_pmap(
-    pilot_rows,
-    one_run,
-    .options = furrr_options(seed = TRUE),
-    .progress = TRUE)
-})
+
+#pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 100), ]
+
+# system.time({
+#   results_raw <- future_pmap(
+#     pilot_rows,
+#     one_run,
+#     .options = furrr_options(seed = TRUE),
+#     .progress = TRUE)
+# })
 
 # OR run in chunks -------------------------------------------------------------
 chunks <- split(experiment_grid, ceiling(seq_len(nrow(experiment_grid)) / 1000))
+graph_cols <- c("shared_graph", "original_graph")
 
 for (i in seq_along(chunks)) {
   chunk_results <- future_pmap(chunks[[i]], one_run,
-                               .options = furrr_options(seed = FALSE))
-  saveRDS(bind_rows(chunk_results), glue("./Results/chunk_{i}.rds"))
+                               .options = furrr_options(seed = FALSE),
+                               .progress = TRUE)
+ 
+  results_df <- map_dfr(chunk_results, ~{
+    as_tibble(.x[setdiff(names(.x), graph_cols)])
+  })
+  results_graphs <- map(chunk_results, ~{
+    .x[ c("run_id",graph_cols)]})
+  
+  saveRDS(bind_rows(results_df), glue("./Results/chunk_{i}.rds"))
+  saveRDS(results_graphs, glue("./Results/graphs_{i}.rds"))
+  
 }
+
 
 # Reassemble afterward
 all_results <- map_dfr(
@@ -146,20 +160,23 @@ all_results <- map_dfr(
   readRDS
 )
 
+
+
+
 # ── 4. Flatten and save ───────────────────────────────────────────────────────
 # Data frame of scalar values
-graph_cols <- c("shared_graph", "original_graph")
-
-results_df <- map_dfr(results_raw, ~{
-  as_tibble(.x[setdiff(names(.x), graph_cols)])
-})
-
-# Separate list of graphs
-results_graphs <- map(results_raw, ~{
-  .x[graph_cols]
-})
-
-saveRDS(results_df, "./Results/simulation_results.rds")
-write_csv(results_df, "./Results/simulation_results.csv")
-
-saveRDS(results_graphs, "./Results/Simulation_graphs.rds")
+# graph_cols <- c("shared_graph", "original_graph")
+# 
+# results_df <- map_dfr(results_raw, ~{
+#   as_tibble(.x[setdiff(names(.x), graph_cols)])
+# })
+# 
+# # Separate list of graphs
+# results_graphs <- map(results_raw, ~{
+#   .x[graph_cols]
+# })
+# 
+# saveRDS(results_df, "./Results/simulation_results.rds")
+# write_csv(results_df, "./Results/simulation_results.csv")
+# 
+# saveRDS(results_graphs, "./Results/Simulation_graphs.rds")
