@@ -16,7 +16,6 @@ DAPSIR_path <- function(graph){
     dimnames = list(D, R)
   )
   
-  
   # Fill matrix
   for (d in D) {
     for (r in R) {
@@ -112,18 +111,16 @@ detect_shared_consensus <- function(res) {
 # Jaccard index allows for better comparison between graphs of different size than the Hamming distance
 agent_shared_disagreement <- function(results) {
   
-  sapply(results$snapshots, function(snap) {
-    
-    indiv  <- snap$indiv
-    shared <- snap$shared
-    
-    mean(
-      apply(indiv, 2, function(agent_graph) {
-        jaccard(indiv,shared) # get the average Jaccard similarity between each individual graph and the shared graph
-      })
-    )
-  })
+  indiv  <- results$indiv
+  shared <- results$shared
+  
+  mean(
+    apply(indiv, 2, function(agent_graph) {
+      jaccard(agent_graph, shared)
+    })
+  )
 }
+
 
 detect_agent_consensus <- function(res) {
   consensus_time <- which(
