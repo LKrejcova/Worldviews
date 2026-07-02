@@ -27,7 +27,7 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
   feat_cols    <- graph_out$feat_cols
   
   # E_candidates <- initial_graph(...)
-  cat("n_nodes at creation:", length(unique(E_candidates$u)), "\n")
+  # cat("n_nodes at creation:", length(unique(E_candidates$u)), "\n")
   
   
   
@@ -73,7 +73,7 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
     error = function(e) NA_integer_
   )
   
-  cat("n_nodes at return:", length(unique(E_candidates$u)), "\n")
+  # cat("n_nodes at return:", length(unique(E_candidates$u)), "\n")
   
   # --- Return a flat list (one row) -------------------------------------------
   list(

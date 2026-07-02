@@ -77,10 +77,10 @@ edge_prior_logit <- function(w_mix, psi_vec, alpha_list){
   # w_mix: named vector over worldviews summing to 1
   # psi_vec: named vector of features with intercept
   sum(sapply(names(w_mix), function(k){
-    ak <- alpha_list[[k]]
+    ak <- alpha_list[[k]] #retrieve the worldview's coefficients
     # align names
-    ak <- ak[names(psi_vec)]
-    w_mix[k] * sum(ak * psi_vec)
+    ak <- ak[names(psi_vec)] # align the names of the coefficients with the names of the edge features
+    w_mix[k] * sum(ak * psi_vec) # multiply the coefficient by the feature, then sum it up 
   }))
 }
 

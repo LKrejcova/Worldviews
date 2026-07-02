@@ -10,6 +10,7 @@ library(furrr)
 library(future)
 library(ggridges)
 library(extraDistr)
+library(R.utils)
 
 source("./Functions/00_helpers.R")
 source("./Functions/01_graph_generation.R")
@@ -77,7 +78,7 @@ experiment_grid <- tidyr::crossing(
   mutate(run_id = row_number())
 
 
-test <- pmap(experiment_grid[1:3, ], one_run)[[1]]
+test <- pmap(experiment_grid[156, ], one_run)[[1]]
 str(test)
 
 any(sapply(test$shared_history, function(x) any(is.na(x))))
@@ -103,10 +104,10 @@ pilot_graphs <- setNames(
 
 # A few checks before we start the parallel run
 set.seed(1)
-pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 30), ]
+pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 100), ]
 
 system.time({
-  pilot_results <- pmap(pilot_rows, one_run)
+  pilot_results <- pmap(pilot_rows, one_run) # apply one_run to each row of pilot_rows
   pilot_df <- bind_rows(pilot_results) 
   graphs <- pilot_results[]
 })
@@ -125,7 +126,8 @@ system.time({
   results_raw <- future_pmap(
     pilot_rows,
     one_run,
-    .options = furrr_options(seed = TRUE))
+    .options = furrr_options(seed = FALSE),
+    .progress = TRUE)
 })
 
 # ── 4. Flatten and save ───────────────────────────────────────────────────────
@@ -133,6 +135,7 @@ results_df <- bind_rows(results_raw)
 
 # Data frame of scalar values
 graph_cols <- c("shared_graph", "original_graph")
+
 results_df <- map_dfr(results_raw, ~{
   as_tibble(.x[setdiff(names(.x), graph_cols)])
 })

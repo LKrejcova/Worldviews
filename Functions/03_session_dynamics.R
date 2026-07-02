@@ -139,7 +139,7 @@ run_session <- function(E_candidates, E_score, agents, alpha_list, feat_cols,
     speaker <- ((t - 1) %% N) + 1
     
     # Single matrix multiply replaces sapply(1:edges, ...) + edge_prior_logit
-    log_odds <- as.numeric(psi_matrix %*% alpha_per_agent[[speaker]])
+    log_odds <- as.numeric(psi_matrix %*% alpha_per_agent[[speaker]]) # multiply the agent coefficients with the edge features
     p_prior  <- sigmoid(log_odds)
     p_soc    <- exp(gamma * social)   # social updates every round
     
