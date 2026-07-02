@@ -83,8 +83,22 @@ str(test)
 any(sapply(test$shared_history, function(x) any(is.na(x))))
 
 pilot_test <- pmap(experiment_grid[1:3, ], one_run)
-pilot_df <- bind_rows(pilot_test)
-summary(pilot_df)
+graph_cols <- c("shared_graph", "original_graph")
+
+# Data frame of scalar values
+pilot_df <- map_dfr(pilot_test, ~{
+  as_tibble(.x[setdiff(names(.x), graph_cols)])
+})
+
+# Separate list of graphs
+pilot_graphs <- map(pilot_test, ~{
+  .x[graph_cols]
+})
+
+pilot_graphs <- setNames(
+  map(pilot_test, ~ .x[graph_cols]),
+  map_chr(pilot_test, ~ as.character(.x$run_id))
+)
 
 
 # A few checks before we start the parallel run
@@ -93,7 +107,8 @@ pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 30), ]
 
 system.time({
   pilot_results <- pmap(pilot_rows, one_run)
-  pilot_df <- bind_rows(pilot_results)  
+  pilot_df <- bind_rows(pilot_results) 
+  graphs <- pilot_results[]
 })
 
 
@@ -116,5 +131,18 @@ system.time({
 # ── 4. Flatten and save ───────────────────────────────────────────────────────
 results_df <- bind_rows(results_raw)
 
+# Data frame of scalar values
+graph_cols <- c("shared_graph", "original_graph")
+results_df <- map_dfr(results_raw, ~{
+  as_tibble(.x[setdiff(names(.x), graph_cols)])
+})
+
+# Separate list of graphs
+results_graphs <- map(results_raw, ~{
+  .x[graph_cols]
+})
+
 saveRDS(results_df, "./Results/simulation_results.rds")
 write_csv(results_df, "./Results/simulation_results.csv")
+
+saveRDS(results_graphs, "./Results/Simulation_graphs.rds")

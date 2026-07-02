@@ -68,6 +68,11 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
   wv_mix        <- characterize_worldview_mix(agent_list)
   evidence_met  <- edge_metrics(res, shared_graph, E_candidates, E_tbl)
   
+  n_cycles = tryCatch(
+    R.utils::withTimeout(length(FindCycles(shared_graph)), timeout = 10, onTimeout = "error"),
+    error = function(e) NA_integer_
+  )
+  
   cat("n_nodes at return:", length(unique(E_candidates$u)), "\n")
   
   # --- Return a flat list (one row) -------------------------------------------
@@ -90,7 +95,7 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
     shared_consensus_time  = shared_con$shared_consensus_time,
     agent_consensus        = agent_con$agent_consensus,
     agent_consensus_time   = agent_con$agent_consensus_time,
-    final_agreement        = tail(agent_shared_disagreement(res), 1),
+    final_agreement        = agent_shared_disagreement(res),
     wv_diversity           = wv_mix$diversity,
     wv_tension             = wv_mix$tension,
     wv_dominant            = paste(wv_mix$dominant_worldviews, collapse = "&"),
@@ -98,7 +103,7 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
     prop_I                 = wv_mix$proportions[2],
     prop_F                 = wv_mix$proportions[3],
     prop_E                 = wv_mix$proportions[4],
-    n_cycles               = length(FindCycles(shared_graph)),
+    n_cycles               = n_cycles,
     n_disconnected         = disconnected(shared_graph),
     shared_graph           = shared_graph,
     original_graph         = original_graph
