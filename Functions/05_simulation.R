@@ -69,7 +69,7 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
   evidence_met  <- edge_metrics(res, shared_graph, E_candidates, E_tbl)
   
   n_cycles = tryCatch(
-    R.utils::withTimeout(length(FindCycles(shared_graph)), timeout = 10, onTimeout = "error"),
+    R.utils::withTimeout(length(FindCycles(shared_graph)), timeout = 5, onTimeout = "error"),
     error = function(e) NA_integer_
   )
   

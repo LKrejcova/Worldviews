@@ -23,7 +23,7 @@ source("./Functions/05_simulation.R")
 # ── 1. Experiment grid ────────────────────────────────────────────────────────
 # set.seed(43)  # makes the grid itself reproducible
 
-N_REPS <- 50  # replications per condition — adjust as needed
+n_reps <- 50  # replications per condition — adjust as needed
 
 experiment_grid <- tidyr::crossing(
   nD         = 2:5,
@@ -74,65 +74,79 @@ experiment_grid <- tidyr::crossing(
     rho     = runif(n(), 0.5, 1),
     p_links = runif(n(), 0.25, 0.75)
   ) |>
-  tidyr::crossing(replicate = 1:3) |>
+  tidyr::crossing(replicate = 1:n_reps) |>
   mutate(run_id = row_number())
 
 
-test <- pmap(experiment_grid[156, ], one_run)[[1]]
-str(test)
-
-any(sapply(test$shared_history, function(x) any(is.na(x))))
-
-pilot_test <- pmap(experiment_grid[1:3, ], one_run)
-graph_cols <- c("shared_graph", "original_graph")
-
-# Data frame of scalar values
-pilot_df <- map_dfr(pilot_test, ~{
-  as_tibble(.x[setdiff(names(.x), graph_cols)])
-})
-
-# Separate list of graphs
-pilot_graphs <- map(pilot_test, ~{
-  .x[graph_cols]
-})
-
-pilot_graphs <- setNames(
-  map(pilot_test, ~ .x[graph_cols]),
-  map_chr(pilot_test, ~ as.character(.x$run_id))
-)
-
-
-# A few checks before we start the parallel run
-set.seed(1)
-pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 100), ]
-
-system.time({
-  pilot_results <- pmap(pilot_rows, one_run) # apply one_run to each row of pilot_rows
-  pilot_df <- bind_rows(pilot_results) 
-  graphs <- pilot_results[]
-})
+# test <- pmap(experiment_grid[156, ], one_run)[[1]]
+# str(test)
+# 
+# any(sapply(test$shared_history, function(x) any(is.na(x))))
+# 
+# pilot_test <- pmap(experiment_grid[1:3, ], one_run)
+# graph_cols <- c("shared_graph", "original_graph")
+# 
+# # Data frame of scalar values
+# pilot_df <- map_dfr(pilot_test, ~{
+#   as_tibble(.x[setdiff(names(.x), graph_cols)])
+# })
+# 
+# # Separate list of graphs
+# pilot_graphs <- map(pilot_test, ~{
+#   .x[graph_cols]
+# })
+# 
+# pilot_graphs <- setNames(
+#   map(pilot_test, ~ .x[graph_cols]),
+#   map_chr(pilot_test, ~ as.character(.x$run_id))
+# )
 
 
-# Sanity checks
-summary(pilot_df)
-pilot_df |> count(n_nodes_original)          # should vary, not be stuck at one value
-pilot_df |> filter(is.na(shared_consensus_time)) |> nrow()  # how many never converge?
-range(pilot_df$n_nodes_shared)
+# # A few checks before we start the parallel run
+# set.seed(1)
+
+# 
+# system.time({
+#   pilot_results <- pmap(pilot_rows, one_run) # apply one_run to each row of pilot_rows
+#   pilot_df <- bind_rows(pilot_results) 
+#   graphs <- pilot_results[]
+# })
+# 
+# 
+# # Sanity checks
+# summary(pilot_df)
+# pilot_df |> count(n_nodes_original)          # should vary, not be stuck at one value
+# pilot_df |> filter(is.na(shared_consensus_time)) |> nrow()  # how many never converge?
+# range(pilot_df$n_nodes_shared)
 
 # ── 3. Run in parallel ────────────────────────────────────────────────────────
 plan(multisession, workers = parallel::detectCores() - 1)
+pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 100), ]
 
 system.time({
   results_raw <- future_pmap(
     pilot_rows,
     one_run,
-    .options = furrr_options(seed = FALSE),
+    .options = furrr_options(seed = TRUE),
     .progress = TRUE)
 })
 
-# ── 4. Flatten and save ───────────────────────────────────────────────────────
-results_df <- bind_rows(results_raw)
+# OR run in chunks -------------------------------------------------------------
+chunks <- split(experiment_grid, ceiling(seq_len(nrow(experiment_grid)) / 500))
 
+for (i in seq_along(chunks)) {
+  chunk_results <- future_pmap(chunks[[i]], one_run,
+                               .options = furrr_options(seed = FALSE))
+  saveRDS(bind_rows(chunk_results), glue("./Results/chunk_{i}.rds"))
+}
+
+# Reassemble afterward
+all_results <- map_dfr(
+  list.files("Results", pattern = "chunk_.*\\.rds", full.names = TRUE),
+  readRDS
+)
+
+# ── 4. Flatten and save ───────────────────────────────────────────────────────
 # Data frame of scalar values
 graph_cols <- c("shared_graph", "original_graph")
 
