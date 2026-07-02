@@ -23,7 +23,7 @@ source("./Functions/05_simulation.R")
 # ── 1. Experiment grid ────────────────────────────────────────────────────────
 # set.seed(43)  # makes the grid itself reproducible
 
-n_reps <- 50  # replications per condition — adjust as needed
+n_reps <- 30  # replications per condition — adjust as needed
 
 experiment_grid <- tidyr::crossing(
   nD         = 2:5,
@@ -120,7 +120,7 @@ experiment_grid <- tidyr::crossing(
 # range(pilot_df$n_nodes_shared)
 
 # ── 3. Run in parallel ────────────────────────────────────────────────────────
-plan(multisession, workers = parallel::detectCores() - 1)
+plan(multisession, workers = parallel::detectCores() - 2)
 pilot_rows <- experiment_grid[sample(nrow(experiment_grid), 100), ]
 
 system.time({
@@ -132,7 +132,7 @@ system.time({
 })
 
 # OR run in chunks -------------------------------------------------------------
-chunks <- split(experiment_grid, ceiling(seq_len(nrow(experiment_grid)) / 500))
+chunks <- split(experiment_grid, ceiling(seq_len(nrow(experiment_grid)) / 1000))
 
 for (i in seq_along(chunks)) {
   chunk_results <- future_pmap(chunks[[i]], one_run,
