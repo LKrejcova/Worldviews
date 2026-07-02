@@ -16,6 +16,7 @@ DAPSIR_path <- function(graph){
     dimnames = list(D, R)
   )
   
+  
   # Fill matrix
   for (d in D) {
     for (r in R) {

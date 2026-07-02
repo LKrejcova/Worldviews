@@ -61,6 +61,8 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
   shared_graph <- G_shared(res, E_candidates, V_nodes)
   n_nodes_shared <- sum(degree(shared_graph) > 0)
   
+  original_graph <- E_candidates %>% select(u,v) %>% graph_from_data_frame(vertices = tibble(name=V_nodes), directed=TRUE)
+  
   shared_consensus_final <- shared_con$shared_consensus && n_nodes_shared > 0
   agent_con     <- detect_agent_consensus(res)
   wv_mix        <- characterize_worldview_mix(agent_list)
@@ -97,7 +99,10 @@ one_run <- function(run_id, group_size, tau, rho, p_links,
     prop_F                 = wv_mix$proportions[3],
     prop_E                 = wv_mix$proportions[4],
     n_cycles               = length(FindCycles(shared_graph)),
-    n_disconnected         = disconnected(shared_graph)
+    n_disconnected         = disconnected(shared_graph),
+    shared_graph           = shared_graph,
+    original_graph         = original_graph
+    
   )
 }
 
